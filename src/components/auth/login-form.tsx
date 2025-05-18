@@ -3,8 +3,9 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { signIn } from '@/app/actions/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,6 +13,18 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // Capture redirectTo parameter on component mount
+  useEffect(() => {
+    const redirectTo = searchParams.get('redirectTo');
+    if (redirectTo) {
+      setRedirectPath(redirectTo);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -23,6 +36,11 @@ export function LoginForm() {
     formData.append('email', email);
     formData.append('password', password);
     formData.append('rememberMe', rememberMe.toString());
+    
+    // Add redirect path if available
+    if (redirectPath) {
+      formData.append('redirectTo', redirectPath);
+    }
     
     try {
       const result = await signIn(formData);
@@ -42,6 +60,12 @@ export function LoginForm() {
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
+      
+      {redirectPath && (
+        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm">
+          You need to sign in to access this page
+        </div>
+      )}
       
       {error && (
         <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">

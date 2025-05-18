@@ -55,6 +55,7 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
   const rememberMe = formData.get('rememberMe') === 'true';
+  const redirectTo = formData.get('redirectTo') as string || '/todos';
   
   // Basic validation
   if (!email || !password) {
@@ -75,7 +76,7 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   // If rememberMe is true, we can potentially set a longer cookie expiry
   // This would likely need to be implemented at the Supabase server configuration level
   
-  redirect('/todos');
+  redirect(redirectTo);
 }
 
 /**
@@ -129,4 +130,16 @@ export async function updatePassword(formData: FormData): Promise<AuthResult> {
   }
   
   return { success: true };
+}
+
+/**
+ * Checks if a user is authenticated and returns their session
+ */
+export async function checkAuthStatus() {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return { 
+    isAuthenticated: !!session,
+    session
+  };
 } 
