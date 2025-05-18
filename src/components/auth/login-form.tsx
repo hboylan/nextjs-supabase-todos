@@ -6,6 +6,10 @@ import { signIn } from '@/app/actions/auth';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { ErrorMessage } from '@/components/ui/error-message';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import AuthLayout from '@/components/auth/AuthLayout';
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,24 +60,45 @@ export function LoginForm() {
       setIsLoading(false);
     }
   };
+  
+  // Footer content for the auth layout
+  const footer = (
+    <p>
+      Don&apos;t have an account?{' '}
+      <Link href="/signup" className="text-blue-600 hover:underline">
+        Sign Up
+      </Link>
+    </p>
+  );
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
-      
+    <AuthLayout 
+      title="Sign In" 
+      description="Sign in to access your todos"
+      footer={footer}
+    >
       {redirectPath && (
-        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm">
-          You need to sign in to access this page
+        <div className="mb-6">
+          <ErrorMessage 
+            message="You need to sign in to access this page" 
+            variant="subtle" 
+            className="text-blue-600 bg-blue-50 p-2 rounded border border-blue-100" 
+          />
         </div>
       )}
       
       {error && (
-        <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+        <div className="mb-6">
+          <ErrorMessage message={error} />
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <SocialLoginButtons 
+        redirectTo={redirectPath || undefined} 
+        onError={setError} 
+      />
+      
+      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         <Input
           label="Email Address"
           type="email"
@@ -118,15 +143,6 @@ export function LoginForm() {
           Sign In
         </Button>
       </form>
-      
-      <div className="mt-4 text-center text-sm">
-        <p>
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign Up
-          </Link>
-        </p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 } 
