@@ -19,7 +19,7 @@ export default async function ProtectedRoute({ children }: ProtectedRouteProps) 
   
   if (!session) {
     // Get the current URL if possible from referer or default to /todos
-    const headersList = headers();
+    const headersList = await headers();
     const referer = headersList.get('referer') || '';
     const currentPath = referer 
       ? new URL(referer).pathname 

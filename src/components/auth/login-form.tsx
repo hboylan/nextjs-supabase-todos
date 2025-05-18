@@ -5,11 +5,14 @@ import { Input } from '@/components/ui/input';
 import { signIn } from '@/app/actions/auth';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useSearchParams } from 'next/navigation';
 import { ErrorMessage } from '@/components/ui/error-message';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import AuthLayout from '@/components/auth/AuthLayout';
+import { FormErrorBoundary, useFormErrorReset } from '@/components/ui/form-error-boundary';
+import { ValidationErrorDisplay } from '@/components/ui/validation-error-display';
+import { validateEmail, ValidationError } from '@/utils/validation';
+import { useToast } from '@/components/ui/toast';
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,9 +21,11 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   
+  const resetKey = useFormErrorReset([email, password]);
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const { showToast } = useToast();
   
   // Capture redirectTo parameter on component mount
   useEffect(() => {
@@ -30,10 +35,39 @@ export function LoginForm() {
     }
   }, [searchParams]);
 
+  // Client-side validation function
+  const validateForm = (): boolean => {
+    const errors: ValidationError[] = [];
+    
+    // Validate email
+    if (!email) {
+      errors.push({ field: 'email', message: 'Email is required' });
+    } else if (!validateEmail(email)) {
+      errors.push({ field: 'email', message: 'Please enter a valid email address' });
+    }
+    
+    // Validate password (simple presence check)
+    if (!password) {
+      errors.push({ field: 'password', message: 'Password is required' });
+    }
+    
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setValidationErrors([]);
+    
+    // Run client-side validation
+    const isValid = validateForm();
+    
+    if (!isValid) {
+      setIsLoading(false);
+      return;
+    }
     
     // Create form data for the server action
     const formData = new FormData();
@@ -52,10 +86,26 @@ export function LoginForm() {
       // If we get here, there was an error (successful login would redirect)
       if ('error' in result) {
         setError(result.error);
+        
+        // If the error appears to have multiple lines, it might be a validation error list
+        if (result.error.includes('\n')) {
+          const errorLines = result.error.split('\n').filter(line => line.trim().startsWith('-'));
+          const errorsArray: ValidationError[] = errorLines.map(line => {
+            const errorMsg = line.replace(/^-\s*/, '').trim();
+            // Try to determine which field this error belongs to
+            let field = 'general';
+            if (errorMsg.toLowerCase().includes('email')) field = 'email';
+            else if (errorMsg.toLowerCase().includes('password')) field = 'password';
+            
+            return { field, message: errorMsg };
+          });
+          setValidationErrors(errorsArray);
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error(err);
+      showToast('Failed to sign in. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +137,7 @@ export function LoginForm() {
         </div>
       )}
       
-      {error && (
+      {error && !validationErrors.length && (
         <div className="mb-6">
           <ErrorMessage message={error} />
         </div>
@@ -98,51 +148,66 @@ export function LoginForm() {
         onError={setError} 
       />
       
-      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
-        <Input
-          label="Email Address"
-          type="email"
-          required
-          fullWidth
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-        />
-        
-        <Input
-          label="Password"
-          type="password"
-          required
-          fullWidth
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••••"
-        />
-        
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
+      <div className="relative flex items-center justify-center my-4">
+        <div className="border-t border-gray-300 absolute w-full"></div>
+        <span className="bg-white px-2 text-gray-500 text-sm relative">or continue with email</span>
+      </div>
+      
+      <FormErrorBoundary resetOnChange={resetKey}>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+          <div>
+            <Input
+              label="Email Address"
+              type="email"
+              required
+              fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              error={validationErrors.some(e => e.field === 'email')}
             />
-            <span className="text-sm text-gray-700">Remember me</span>
-          </label>
+            <ValidationErrorDisplay errors={validationErrors} field="email" />
+          </div>
           
-          <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-            Forgot password?
-          </Link>
-        </div>
-        
-        <Button 
-          type="submit" 
-          fullWidth 
-          isLoading={isLoading}
-        >
-          Sign In
-        </Button>
-      </form>
+          <div>
+            <Input
+              label="Password"
+              type="password"
+              required
+              fullWidth
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••"
+              error={validationErrors.some(e => e.field === 'password')}
+            />
+            <ValidationErrorDisplay errors={validationErrors} field="password" />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <span className="text-sm text-gray-700">Remember me</span>
+            </label>
+            
+            <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+          
+          <Button 
+            type="submit" 
+            fullWidth 
+            isLoading={isLoading}
+          >
+            Sign In
+          </Button>
+        </form>
+      </FormErrorBoundary>
     </AuthLayout>
   );
 } 

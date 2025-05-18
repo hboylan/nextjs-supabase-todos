@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+// import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface SocialLoginButtonsProps {
   redirectTo?: string;
@@ -11,8 +13,7 @@ interface SocialLoginButtonsProps {
 }
 
 export function SocialLoginButtons({ redirectTo, onError }: SocialLoginButtonsProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
   const supabase = createClient();
   
   const handleLogin = async (provider: 'google' | 'github') => {
