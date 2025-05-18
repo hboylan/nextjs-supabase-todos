@@ -1,0 +1,459 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Playwright End-to-End Testing Best Practices
+
+Playwright enables reliable end-to-end testing for modern web apps, supporting all modern rendering engines including Chromium, WebKit, and Firefox.
+
+- **Use Page Object Model Pattern**
+  - Separate test logic from page interactions
+  - Create reusable page classes for each major page/component
+  - Expose actions and properties that represent user workflows
+
+```typescript
+// ✅ DO: Implement Page Object Model
+// pages/login-page.ts
+export class LoginPage {
+  constructor(private page: Page) {}
+  
+  async goto() {
+    await this.page.goto('/login');
+  }
+  
+  async login(username: string, password: string) {
+    await this.page.fill('[data-testid="username"]', username);
+    await this.page.fill('[data-testid="password"]', password);
+    await this.page.click('[data-testid="login-button"]');
+  }
+  
+  async getErrorMessage() {
+    return this.page.textContent('[data-testid="error-message"]');
+  }
+}
+
+// tests/login.spec.ts
+test('user can login', async ({ page }) => {
+  const loginPage = new LoginPage(page);
+  await loginPage.goto();
+  await loginPage.login('user@example.com', 'password123');
+  await expect(page).toHaveURL('/dashboard');
+});
+```
+
+- **Choose the Right Locators**
+  - Prioritize locators that are resilient to UI changes
+  - Follow priority: role > label/text > test ID > CSS
+  - Consider user-facing attributes first (what users see)
+
+```typescript
+// ✅ DO: Use resilient locators
+await page.getByRole('button', { name: 'Submit' }).click();
+await page.getByLabel('Email').fill('user@example.com');
+await page.getByText('Welcome back').isVisible();
+
+// ❌ DON'T: Use brittle selectors
+await page.locator('.submit-btn-class').click();
+await page.locator('div > form > input:nth-child(2)').fill('user@example.com');
+```
+
+- **Handle Waiting Appropriately**
+  - Use auto-waiting capabilities instead of explicit waits
+  - When needed, prefer `waitFor` functions with assertions
+  - Always wait for specific conditions, not arbitrary timeouts
+
+```typescript
+// ✅ DO: Leverage built-in waiting
+// Playwright automatically waits for elements to be actionable
+await page.getByRole('button', { name: 'Submit' }).click();
+
+// ✅ DO: Wait for specific conditions when needed
+await expect(page.getByText('Success')).toBeVisible();
+await expect(page.locator('.data-table')).toContainText('Expected data');
+
+// ❌ DON'T: Use arbitrary timeouts
+await page.waitForTimeout(1000); // Avoid this
+```
+
+- **Make Assertions Clear and Specific**
+  - Use expressive assertions that show intent
+  - Prefer assertions that check visible elements
+  - Use custom error messages for clarity when needed
+
+```typescript
+// ✅ DO: Use clear assertions
+await expect(page.getByRole('heading')).toHaveText('Dashboard');
+await expect(page.getByTestId('error-message')).toBeVisible();
+await expect(page.getByRole('button', { name: 'Submit' })).toBeEnabled();
+
+// ❌ DON'T: Use vague or complex assertions
+await expect(await page.$$('.item')).toHaveLength(5);
+await expect(await page.inputValue('#email')).toBe('');
+```
+
+- **Isolate Tests Properly**
+  - Each test should be independent
+  - Reset application state between tests
+  - Use test hooks for common setup and teardown
+
+```typescript
+// ✅ DO: Setup proper test isolation
+test.beforeEach(async ({ page }) => {
+  // Create a clean user session for each test
+  await page.goto('/');
+  await page.evaluate(() => window.localStorage.clear());
+  // Setup test data or login if needed
+  await loginAsTestUser(page);
+});
+
+test.afterEach(async ({ page }) => {
+  // Cleanup any test artifacts
+  await cleanupTestData();
+});
+```
+
+- **Mock and Intercept Network Requests Comprehensively**
+  - Simulate API responses for controlled testing
+  - Test different response scenarios (success, error, loading)
+  - Create reusable network mocking utilities
+  - Validate outgoing request data and parameters
+  - Mock authentication to avoid repetitive login flows
+
+```typescript
+// ✅ DO: Create reusable API mocking utilities
+// utils/api-mocks.ts
+export const mockUserAPI = async (page: Page, options: { users?: any[], error?: boolean } = {}) => {
+  const users = options.users || [
+    { id: 1, name: 'Test User', email: 'test@example.com' },
+    { id: 2, name: 'Another User', email: 'another@example.com' }
+  ];
+  
+  await page.route('**/api/users', route => {
+    if (options.error) {
+      return route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) });
+    }
+    return route.fulfill({ status: 200, body: JSON.stringify(users) });
+  });
+  
+  await page.route('**/api/users/:id', route => {
+    const id = route.request().url().split('/').pop();
+    const user = users.find(u => u.id.toString() === id);
+    
+    if (!user) {
+      return route.fulfill({ status: 404, body: JSON.stringify({ error: 'User not found' }) });
+    }
+    
+    return route.fulfill({ status: 200, body: JSON.stringify(user) });
+  });
+};
+
+// ✅ DO: Test different API scenarios
+test('shows user list', async ({ page }) => {
+  await mockUserAPI(page);
+  await page.goto('/users');
+  await expect(page.getByText('Test User')).toBeVisible();
+  await expect(page.getByText('Another User')).toBeVisible();
+});
+
+test('handles empty user list', async ({ page }) => {
+  await mockUserAPI(page, { users: [] });
+  await page.goto('/users');
+  await expect(page.getByText('No users found')).toBeVisible();
+});
+
+test('shows error message when API fails', async ({ page }) => {
+  await mockUserAPI(page, { error: true });
+  await page.goto('/users');
+  await expect(page.getByText('Failed to load users')).toBeVisible();
+});
+
+// ✅ DO: Mock authentication to simplify tests
+// utils/auth-mocks.ts
+export const mockAuthenticated = async (page: Page, user = { id: 1, name: 'Test User' }) => {
+  // Mock the auth API endpoint
+  await page.route('**/api/auth/me', route => 
+    route.fulfill({ status: 200, body: JSON.stringify(user) })
+  );
+  
+  // Set authentication cookies/localStorage
+  await page.evaluate(user => {
+    localStorage.setItem('auth_token', 'fake-token-for-testing');
+    localStorage.setItem('user', JSON.stringify(user));
+  }, user);
+};
+
+// Usage in tests
+test('authenticated user can access profile', async ({ page }) => {
+  await mockAuthenticated(page);
+  await page.goto('/profile');
+  // No need to log in, already authenticated
+  await expect(page.getByText('Test User')).toBeVisible();
+});
+
+// ✅ DO: Verify outgoing request data
+test('sends correct data when creating a user', async ({ page }) => {
+  // Monitor POST requests to the users API
+  let requestData;
+  await page.route('**/api/users', route => {
+    if (route.request().method() === 'POST') {
+      requestData = route.request().postDataJSON();
+      return route.fulfill({ 
+        status: 201, 
+        body: JSON.stringify({ id: 3, ...requestData }) 
+      });
+    }
+  });
+  
+  await page.goto('/users/new');
+  await page.getByLabel('Name').fill('New User');
+  await page.getByLabel('Email').fill('new@example.com');
+  await page.getByRole('button', { name: 'Create' }).click();
+  
+  // Verify the data sent to the API
+  expect(requestData).toEqual({
+    name: 'New User',
+    email: 'new@example.com'
+  });
+  
+  await expect(page.getByText('User created successfully')).toBeVisible();
+});
+
+// ✅ DO: Test multiple API interactions in sequence
+test('user can be created and then appears in the list', async ({ page }) => {
+  // Setup initial empty users list
+  const users = [];
+  
+  // Handle GET and POST requests to the users API
+  await page.route('**/api/users', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, body: JSON.stringify(users) });
+    }
+    
+    if (route.request().method() === 'POST') {
+      const newUser = { id: Date.now(), ...route.request().postDataJSON() };
+      users.push(newUser);
+      return route.fulfill({ status: 201, body: JSON.stringify(newUser) });
+    }
+  });
+  
+  // Create a new user
+  await page.goto('/users/new');
+  await page.getByLabel('Name').fill('New User');
+  await page.getByLabel('Email').fill('new@example.com');
+  await page.getByRole('button', { name: 'Create' }).click();
+  
+  // Verify user is added to the list
+  await page.goto('/users');
+  await expect(page.getByText('New User')).toBeVisible();
+  await expect(page.getByText('new@example.com')).toBeVisible();
+});
+```
+
+- **Test Different Viewport Sizes**
+  - Test responsive behavior on different devices
+  - Use Playwright's device emulation capabilities
+  - Group related viewport tests together
+
+```typescript
+// ✅ DO: Test on multiple viewports
+test.describe('Responsive behavior', () => {
+  test('menu collapses on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
+    await page.goto('/');
+    await expect(page.getByTestId('hamburger-menu')).toBeVisible();
+    await expect(page.getByTestId('desktop-nav')).toBeHidden();
+  });
+  
+  test('shows full navigation on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await expect(page.getByTestId('desktop-nav')).toBeVisible();
+    await expect(page.getByTestId('hamburger-menu')).toBeHidden();
+  });
+});
+
+// ✅ DO: Use device emulation for broader testing
+test('works on tablet', async ({ page }) => {
+  await page.emulate(devices['iPad Pro 11']);
+  await page.goto('/');
+  // Test tablet-specific functionality
+});
+```
+
+- **Use Visual Comparison When Appropriate**
+  - Set up visual regression tests for critical UI components
+  - Configure proper threshold for pixel differences
+  - Store baseline screenshots in version control
+
+```typescript
+// ✅ DO: Implement visual comparison for critical UI
+test('dashboard layout matches design', async ({ page }) => {
+  await page.goto('/dashboard');
+  // Ensure data is fully loaded
+  await expect(page.getByTestId('loading')).toBeHidden();
+  
+  // Compare against baseline with minimal threshold
+  await expect(page).toHaveScreenshot('dashboard.png', {
+    maxDiffPixelRatio: 0.01,
+  });
+});
+```
+
+- **Test Accessibility**
+  - Include accessibility checks in your e2e tests
+  - Use Playwright's built-in accessibility features
+  - Test keyboard navigation for critical paths
+
+```typescript
+// ✅ DO: Check accessibility
+test('login form is accessible', async ({ page }) => {
+  await page.goto('/login');
+  
+  // Run accessibility checks
+  const accessibilityScanResults = await page.accessibility.snapshot();
+  expect(accessibilityScanResults.violations).toEqual([]);
+  
+  // Test keyboard navigation
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Email')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Password')).toBeFocused();
+});
+```
+
+- **Implement Stable Retry Logic**
+  - Configure proper retry settings for flaky tests
+  - Add custom retry logic for known unstable interactions
+  - Log detailed information on test failures
+
+```typescript
+// ✅ DO: Configure test retries appropriately
+// playwright.config.ts
+export default defineConfig({
+  retries: process.env.CI ? 2 : 0, // Retry twice in CI, none locally
+  reporter: [['html', { open: 'never' }]], // Detailed reporting
+});
+
+// ✅ DO: Add custom retry logic for unstable operations
+async function retryOnError(action, maxRetries = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await action();
+      return;
+    } catch (error) {
+      console.log(`Attempt ${attempt + 1} failed, retrying...`);
+      lastError = error;
+      await page.waitForTimeout(1000); // Give it a moment before retry
+    }
+  }
+  throw lastError;
+}
+
+// Usage
+await retryOnError(async () => {
+  await page.getByRole('button', { name: 'Load More' }).click();
+  await expect(page.getByTestId('item-12')).toBeVisible();
+});
+```
+
+- **Structure Tests Effectively**
+  - Group related tests with `test.describe`
+  - Use hierarchical organization mirroring application structure
+  - Share fixtures and utilities efficiently
+
+```typescript
+// ✅ DO: Structure tests logically with describe blocks
+test.describe('Authentication', () => {
+  test.describe('Login', () => {
+    test('shows validation errors for empty fields', async ({ page }) => {
+      // Test code
+    });
+    
+    test('allows user to log in with valid credentials', async ({ page }) => {
+      // Test code
+    });
+    
+    test('shows error message for invalid credentials', async ({ page }) => {
+      // Test code
+    });
+  });
+  
+  test.describe('Registration', () => {
+    // Registration tests
+  });
+  
+  test.describe('Password Reset', () => {
+    // Password reset tests
+  });
+});
+```
+
+- **Test Environment Configuration**
+  - Use environment variables for configuring test environments
+  - Create specific test data for e2e tests
+  - Document test prerequisites and setup
+
+```typescript
+// ✅ DO: Set up proper configuration
+// playwright.config.ts
+export default defineConfig({
+  use: {
+    baseURL: process.env.TEST_URL || 'http://localhost:3000',
+    storageState: 'playwright/.auth/admin.json', // Saved authentication state
+  },
+  projects: [
+    {
+      name: 'Chrome',
+      use: { browserName: 'chromium' },
+    },
+    {
+      name: 'Firefox',
+      use: { browserName: 'firefox' },
+    },
+    {
+      name: 'Safari',
+      use: { browserName: 'webkit' },
+    },
+  ],
+});
+```
+
+- **Implement CI/CD Integration**
+  - Run tests in CI pipeline on pull requests
+  - Set up parallel test execution for speed
+  - Configure artifact storage for screenshots and videos
+
+```typescript
+// ✅ DO: Configure for CI (example GitHub Actions workflow)
+// .github/workflows/e2e.yml
+name: E2E Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Install dependencies
+      run: npm ci
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+    - name: Run Playwright tests
+      run: npx playwright test
+    - uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+```
+
