@@ -54,12 +54,15 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   const supabase = await createClient();
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
+  const rememberMe = formData.get('rememberMe') === 'true';
   
   // Basic validation
   if (!email || !password) {
     return { error: 'Email and password are required' };
   }
   
+  // Session persistence doesn't seem to be configurable directly in signInWithPassword
+  // We'll need to implement it another way if needed
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -68,6 +71,9 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   if (error) {
     return { error: error.message };
   }
+  
+  // If rememberMe is true, we can potentially set a longer cookie expiry
+  // This would likely need to be implemented at the Supabase server configuration level
   
   redirect('/todos');
 }
