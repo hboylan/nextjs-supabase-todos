@@ -1,10 +1,16 @@
 import React from 'react';
+import Link from 'next/link';
 
 interface ErrorMessageProps {
   message: string;
   variant?: 'default' | 'subtle' | 'toast';
   className?: string;
   onClose?: () => void;
+  details?: string;
+  action?: {
+    label: string;
+    href: string;
+  };
 }
 
 export function ErrorMessage({
@@ -12,6 +18,8 @@ export function ErrorMessage({
   variant = 'default',
   className = '',
   onClose,
+  details,
+  action,
 }: ErrorMessageProps) {
   if (!message) return null;
 
@@ -29,23 +37,55 @@ export function ErrorMessage({
       data-testid="error-message"
     >
       {variant === 'default' && (
-        <div className="flex items-start">
-          <svg 
-            className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" 
-            fill="currentColor" 
-            viewBox="0 0 20 20"
-          >
-            <path 
-              fillRule="evenodd" 
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
-              clipRule="evenodd" 
-            />
-          </svg>
-          <div>{message}</div>
+        <div className="flex flex-col">
+          <div className="flex items-start">
+            <svg 
+              className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path 
+                fillRule="evenodd" 
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
+                clipRule="evenodd" 
+              />
+            </svg>
+            <div>{message}</div>
+          </div>
+          
+          {details && (
+            <div className="mt-1 ml-7 text-sm text-red-600">
+              {details}
+            </div>
+          )}
+          
+          {action && (
+            <div className="mt-3 ml-7">
+              <Link
+                href={action.href}
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                {action.label}
+              </Link>
+            </div>
+          )}
         </div>
       )}
       
-      {variant === 'subtle' && <div>{message}</div>}
+      {variant === 'subtle' && (
+        <div>
+          <div>{message}</div>
+          {details && <div className="mt-1 text-xs">{details}</div>}
+          {action && (
+            <Link
+              href={action.href}
+              className="inline-block mt-2 text-sm text-red-700 hover:underline"
+            >
+              {action.label}
+            </Link>
+          )}
+        </div>
+      )}
       
       {variant === 'toast' && (
         <div className="flex justify-between items-center">
@@ -61,7 +101,10 @@ export function ErrorMessage({
                 clipRule="evenodd" 
               />
             </svg>
-            <div>{message}</div>
+            <div>
+              <div>{message}</div>
+              {details && <div className="text-xs opacity-90 mt-1">{details}</div>}
+            </div>
           </div>
           {onClose && (
             <button 
