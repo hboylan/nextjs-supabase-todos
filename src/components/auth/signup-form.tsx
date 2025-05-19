@@ -130,11 +130,11 @@ export function SignupForm() {
           <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-4">
             <p>
               Please check your inbox and click the link to verify your account.
-            </p>
+        </p>
             <p className="text-sm mt-2 text-blue-600">
-              Remember to check your spam folder if you don&apos;t see it in your inbox.
-            </p>
-          </div>
+          Remember to check your spam folder if you don&apos;t see it in your inbox.
+        </p>
+      </div>
         </div>
       </AuthLayout>
     );
@@ -160,58 +160,58 @@ export function SignupForm() {
       </div>
       
       <FormErrorBoundary resetOnChange={resetKey}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Input
-              label="Email Address"
-              type="email"
-              required
-              fullWidth
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+        <Input
+          label="Email Address"
+          type="email"
+          required
+          fullWidth
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
               error={validationErrors.some(e => e.field === 'email')}
-            />
+        />
             <ValidationErrorDisplay errors={validationErrors} field="email" />
           </div>
-          
+        
           <div>
-            <Input
-              label="Password"
-              type="password"
-              required
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••"
+        <Input
+          label="Password"
+          type="password"
+          required
+          fullWidth
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••••"
               error={validationErrors.some(e => e.field === 'password')}
-            />
+        />
             {password && <PasswordStrengthIndicator strength={passwordCheck.strength} />}
             <ValidationErrorDisplay errors={validationErrors} field="password" />
           </div>
-          
+        
           <div>
-            <Input
-              label="Confirm Password"
-              type="password"
-              required
-              fullWidth
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••••"
+        <Input
+          label="Confirm Password"
+          type="password"
+          required
+          fullWidth
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="••••••••••"
               error={validationErrors.some(e => e.field === 'confirmPassword')}
-            />
+        />
             <ValidationErrorDisplay errors={validationErrors} field="confirmPassword" />
           </div>
-          
-          <Button 
-            type="submit" 
-            fullWidth 
-            isLoading={isLoading}
-          >
+        
+        <Button 
+          type="submit" 
+          fullWidth 
+          isLoading={isLoading}
+        >
             Create Account
-          </Button>
-        </form>
+        </Button>
+      </form>
       </FormErrorBoundary>
     </AuthLayout>
   );

@@ -156,57 +156,57 @@ export function LoginForm() {
       <FormErrorBoundary resetOnChange={resetKey}>
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div>
-            <Input
-              label="Email Address"
-              type="email"
-              required
-              fullWidth
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+        <Input
+          label="Email Address"
+          type="email"
+          required
+          fullWidth
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
               error={validationErrors.some(e => e.field === 'email')}
-            />
+        />
             <ValidationErrorDisplay errors={validationErrors} field="email" />
           </div>
-          
+        
           <div>
-            <Input
-              label="Password"
-              type="password"
-              required
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••"
+        <Input
+          label="Password"
+          type="password"
+          required
+          fullWidth
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••••"
               error={validationErrors.some(e => e.field === 'password')}
-            />
+        />
             <ValidationErrorDisplay errors={validationErrors} field="password" />
           </div>
+        
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <span className="text-sm text-gray-700">Remember me</span>
+          </label>
           
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span className="text-sm text-gray-700">Remember me</span>
-            </label>
-            
-            <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-              Forgot password?
-            </Link>
-          </div>
-          
-          <Button 
-            type="submit" 
-            fullWidth 
-            isLoading={isLoading}
-          >
-            Sign In
-          </Button>
-        </form>
+          <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+            Forgot password?
+          </Link>
+        </div>
+        
+        <Button 
+          type="submit" 
+          fullWidth 
+          isLoading={isLoading}
+        >
+          Sign In
+        </Button>
+      </form>
       </FormErrorBoundary>
     </AuthLayout>
   );

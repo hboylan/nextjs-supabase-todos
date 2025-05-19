@@ -30,10 +30,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-50`}
       >
         <ToastProvider>
-          <Header />
-          <div className="py-4">
-            {children}
-          </div>
+        <Header />
+        <div className="py-4">
+          {children}
+        </div>
         </ToastProvider>
       </body>
     </html>
