@@ -3,6 +3,9 @@ import { createClient } from '@/utils/supabase/server';
 import { Metadata } from 'next';
 import { NewTodoForm } from '@/components/todos/new-todo-form';
 import { Suspense } from 'react';
+import TodoList from '@/components/todos/todo-list';
+import TodoListSkeleton from '@/components/todos/todo-list-skeleton';
+import { FormErrorBoundary } from '@/components/ui/form-error-boundary';
 
 export const metadata: Metadata = {
   title: 'Your Todos - Todo App',
@@ -35,8 +38,11 @@ export default async function TodosPage() {
             
             <div className="mt-6 border-t border-gray-200 pt-4">
               <h2 className="text-lg font-medium mb-4">Your Tasks</h2>
-              <p className="text-gray-500">Your todos will appear here once you add them.</p>
-              {/* Todo list will be added in the next task */}
+              <FormErrorBoundary>
+                <Suspense fallback={<TodoListSkeleton />}>
+                  <TodoList />
+                </Suspense>
+              </FormErrorBoundary>
             </div>
         </div>
       </div>
